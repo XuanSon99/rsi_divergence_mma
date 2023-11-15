@@ -29,7 +29,7 @@ TOKEN = "6473609170:AAGdrtjuCmrxYrJBN1B1jLYJFq_1gxMdpHI"
 # TOKEN = "6217705988:AAEOYp5g31rkl-iWrXAGE_mo7t0f0Oz3qIo"
 
 BASE_URL = "https://contract.mexc.com/api/v1"
-CHAT_ID = "-1001962645473"
+CHAT_ID = ["-1001962645473", "-1001711334866"]
 
 # Define main code
 
@@ -48,7 +48,7 @@ def get_all_future_pairs():
         return None
 
 
-def get_symbol_data(symbol, interval="Min15"):
+def get_symbol_data(symbol, interval="Min60"):
     url = f"{BASE_URL}/contract/kline/{symbol}?interval={interval}"
     response = requests.get(url)
     data = response.json()
@@ -128,13 +128,19 @@ def find_latest_rsi_bearish_divergence(df, threshold=75, lookback_period=20):
 
 async def check_conditions_and_send_message(context: ContextTypes.DEFAULT_TYPE):
     print("Checking conditions...")
-
+    reply_markup = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(text="Mua bán USDT", url="https://exchange.chootc.com"),
+                ]
+            ]
+        )
     try:
         tokens_to_check = get_all_future_pairs()
         
         for symbol in tokens_to_check:
             df_m15 = get_symbol_data(symbol)
-            df_m5 = get_symbol_data(symbol, interval="Min5")
+            df_m5 = get_symbol_data(symbol, interval="Min15")
 
             bearish_divergence = find_latest_rsi_bearish_divergence(
                 df_m15
@@ -144,12 +150,14 @@ async def check_conditions_and_send_message(context: ContextTypes.DEFAULT_TYPE):
             ) and find_latest_rsi_bullish_divergence(df_m5)
 
             if bearish_divergence:
-                message = f"🔴 Tín hiệu short cho {symbol} \n RSI phân kỳ giảm trên M5 và M15"
-                await context.bot.send_message(CHAT_ID, text=message)
+                message = f"🔴 Tín hiệu short cho {symbol} \n RSI phân kỳ giảm trên M15 và H1"
+                for i in CHAT_ID:
+                    await context.bot.send_message(i, text=message, reply_markup=reply_markup)
 
             if bullish_divergence:
-                message = f"🟢 Tín hiệu long cho {symbol} \n RSI phân kỳ tăng trên M5 và M15"
-                await context.bot.send_message(CHAT_ID, text=message)
+                message = f"🟢 Tín hiệu long cho {symbol} \n RSI phân kỳ tăng trên M15 và H1"
+                for i in CHAT_ID:
+                    await context.bot.send_message(i, text=message, reply_markup=reply_markup)
 
     except Exception as e:
         print(e)
@@ -161,6 +169,7 @@ async def check_conditions_and_send_message(context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sends explanation on how to use the bot."""
+
     if update.effective_message.chat_id != 5333185120: return
 
     await update.message.reply_text("Hi")
@@ -172,7 +181,7 @@ def main() -> None:
     application.add_handler(CommandHandler(["start", "help"], start))
 
     job_queue = application.job_queue
-    job_queue.run_repeating(check_conditions_and_send_message, interval=300, first=10)
+    job_queue.run_repeating(check_conditions_and_send_message, interval=600, first=10)
 
     application.run_polling()
 
